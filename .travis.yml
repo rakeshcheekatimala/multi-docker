@@ -1,0 +1,34 @@
+sudo: required
+services:
+  - docker
+
+before_install: 
+  - docker build -t rakeshcheekatimala/md-react-test -f ./frontend/Dockerfile.dev ./frontend
+
+script:
+  - docker run -e CI=true rakeshcheekatimala/md-react-test npm run test -- --coverage --watchAll=false
+
+after_success:
+  - docker build -t rakeshcheekatimala/md-frontend-react ./frontend
+  - docker build -t rakeshcheekatimala/md-nginx ./nginx
+  - docker build -t rakeshcheekatimala/md-api ./api
+  
+  # Log in to the docker CLI
+  - echo "$DOCKER_PASSWORD" | docker login -u "$DOCKER_ID" --password-stdin
+  # Take those images and push them to docker hub
+  - docker push rakeshcheekatimala/md-frontend-react
+  - docker push rakeshcheekatimala/md-nginx
+  - docker push rakeshcheekatimala/md-api
+
+deploy:
+  provider: elasticbeanstalk
+  region: ap-southeast-1
+  app: multi-docker
+  env: MultiDocker-env
+  bucket_name: elasticbeanstalk-ap-southeast-1-583088502850
+  bucket_path: docker-multi
+  on:
+    branch: master
+  access_key_id: $AWS_ACCESS_KEY
+  secret_access_key:
+    secure: $AWS_SECRET_KEY
